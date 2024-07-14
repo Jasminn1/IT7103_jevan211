@@ -1,0 +1,108 @@
+# %%
+import pandas as pd
+import numpy as np
+
+# %%
+d1 = pd.read_csv("/Users/jasminnevans/Desktop/Summer 2024/Practical Data Analytics/Assignment 4/breast-cancer.csv")
+
+d1.head()
+
+
+# %%
+d1.shape, d1.dtypes, d1.info()
+
+# %%
+from sklearn.model_selection import train_test_split
+
+traindata, testdata = train_test_split(d1, test_size=0.20) #test_size=0.2 means that 20% of data will be for testing, 80% for training
+traindata.shape, testdata.shape
+
+from matplotlib import pyplot as plt
+
+traindata.hist(bins=20, figsize=(20,15))
+plt.show()
+
+
+num_cols = [column for column in d1.columns if (traindata[column].dtypes == np.int64) or (traindata[column].dtypes == np.float64)]
+num_cols.remove('id')
+num_cols
+
+traindata[num_cols].boxplot(grid=False, figsize=(20,5), rot=30)
+plt.show()
+
+# %%
+
+
+# %%
+num_cols = ['UniformityOfCellShape','SingleEpithelialCellSize','BareNuclei',,'Mitoses','Class'] #symmetric numeric columns
+log_cols = ['UniformityOfCellSize', 'ClumpThickness','BlandChromatin','MarginalAdhesion','NormalNucleoli'] #skewed numneric columns
+target = ['stroke'] #target columns
+
+
+# %%
+rom sklearn.preprocessing import OneHotEncoder, FunctionTransformer
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+import numpy as np
+
+num_pipeline = Pipeline([                           
+    ('impute', SimpleImputer(strategy='median')),   
+    ('standardize', StandardScaler())               
+])
+
+def log_transformation(x):
+    return np.log(x+0.1)
+
+log_pipeline = Pipeline([                                        
+    ('impute', SimpleImputer(strategy='median')),                
+    ('log transform', FunctionTransformer(log_transformation)), 
+    ('standardize', StandardScaler())                            
+])
+
+processing_pipeline = ColumnTransformer([                                                     
+    ('numeric', num_pipeline, num_cols),                                                       
+    ('log', log_pipeline, log_cols),                                                           
+    ('class', OneHotEncoder(max_categories=5, handle_unknown='infrequent_if_exist')) 
+  ])
+
+processing_pipeline
+
+# %%
+from sklearn.linear_model import LogisticRegression
+
+logistic_pipeline = Pipeline([
+    ('processing',processing_pipeline),
+    ('modeling',LogisticRegression())
+])
+
+logistic_pipeline.fit(traindata, traindata[target])
+
+logistic_pred = logistic_pipeline.predict(traindata)
+
+from sklearn.metrics import accuracy_score
+accuracy_score(traindata[target], logistic_pred)
+
+# %%
+from sklearn.tree import DecisionTreeClassifier
+
+tree_pipeline = Pipeline([
+    ('processing',processing_pipeline),
+    ('modeling',DecisionTreeClassifier())
+])
+
+tree_pipeline.fit(traindata, traindata[target])
+
+tree_pred = tree_pipeline.predict(traindata)
+accuracy_score(traindata[target], tree_pred)
+
+# %%
+tree_pred_test = tree_pipeline.predict(testdata)
+accuracy_score(testdata[target], tree_pred_test)
+
+logistic_pred_test = logistic_pipeline.predict(testdata)
+accuracy_score(testdata[target], logistic_pred_test)
+ 
+
+
